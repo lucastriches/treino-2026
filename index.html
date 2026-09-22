@@ -247,6 +247,30 @@
   .stat b{ display:block; font-family:var(--display); font-size:21px; }
   .stat span{ font-size:9.5px; color:var(--txt3); text-transform:uppercase; letter-spacing:.7px; }
 
+  .stats.s4{ grid-template-columns:1fr 1fr; }
+  .stats.s4 .stat.hero{ grid-column:1 / -1; background:var(--accent-dim); border-color:var(--accent); }
+  .stats.s4 .stat.hero b{ color:var(--teal); font-size:26px; }
+  .done-note{
+    font-size:11.5px; color:var(--txt2); line-height:1.5; background:var(--panel);
+    border:1px solid var(--line); border-radius:11px; padding:11px 13px; margin-bottom:16px; text-align:left;
+  }
+
+  /* faixa de volume de carga (semana / mês / acumulado) */
+  .vol-strip{
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; margin-bottom:16px;
+    border:1px solid var(--line); border-radius:12px; padding:12px 10px; background:var(--panel);
+  }
+  .vol-strip .vs{ text-align:center; }
+  .vol-strip .vs b{ display:block; font-family:var(--mono); font-size:16px; font-weight:700; color:var(--teal); }
+  .vol-strip .vs span{ font-size:9.5px; color:var(--txt3); text-transform:uppercase; letter-spacing:.7px; }
+  .vol-strip .vs small{ display:block; font-size:10px; color:var(--txt3); margin-top:2px; }
+  .vol-title{
+    grid-column:1 / -1; font-size:10px; font-weight:800; letter-spacing:1.1px; text-transform:uppercase;
+    color:var(--txt3); text-align:left; margin-bottom:2px;
+  }
+
+  .s-head .clock.over{ color:#ffd166; }
+
   .h-item{
     display:flex; align-items:center; gap:11px; background:var(--panel); border:1px solid var(--line);
     border-radius:12px; padding:11px 13px; margin-bottom:8px;
@@ -473,11 +497,13 @@
         <div class="ck" id="done-ck">🏆</div>
         <h2 id="done-title">Treino A</h2>
         <p id="done-date">—</p>
-        <div class="stats">
+        <div class="stats s4">
           <div class="stat"><b id="done-time">0:00</b><span>Duração</span></div>
           <div class="stat"><b id="done-series">0</b><span>Séries</span></div>
           <div class="stat"><b id="done-vol">0</b><span>Exercícios</span></div>
+          <div class="stat hero"><b id="done-load">0 kg</b><span>Peso levantado</span></div>
         </div>
+        <div class="done-note" id="done-note"></div>
         <button class="btn-teal" id="done-ok" style="width:100%">Voltar ao início</button>
       </div>
     </div>
@@ -491,6 +517,7 @@
     </div>
     <div class="content">
       <div class="stats" id="hist-stats"></div>
+      <div class="vol-strip" id="hist-vol"></div>
       <div id="hist-list"></div>
     </div>
   </section>
@@ -542,10 +569,6 @@
           <div class="t"><b>Avançar automático</b><span>Fecha a série sozinho ao atingir a pausa ideal</span></div>
           <button class="sw" data-cfg="autoAvancar"><i></i></button>
         </div>
-        <div class="cfg-row">
-          <div class="t"><b>Incluir extras</b><span>Rosca Martelo e Chin-up nos treinos A, C e D</span></div>
-          <button class="sw" data-cfg="extras"><i></i></button>
-        </div>
       </div>
 
       <div class="sec-title">Dados</div>
@@ -587,58 +610,59 @@
 
 <script>
 "use strict";
-const APP_VER = "2.0";
+const APP_VER = "3.0";
 
 /* =========================================================================
    1. PLANO — transcrito de mapa-treino-2026.html (séries, reps e pausas)
    ========================================================================= */
 const PLAN = {
-  A:{ id:"A", nome:"Treino A", dias:"SEG · SEX", foco:"Peito · Costas · Abdômen", cor:"#d92b3e", extras:true,
+  A:{ id:"A", nome:"Treino A", dias:"SEGUNDA", foco:"Peito · Costas · Postura · Abdômen", cor:"#d92b3e",
     ex:[
       {n:"Supino Reto + Crucifixo Reto", biset:true, s:3, reps:"3×10 + 3×10", min:120, ideal:150},
-      {n:"Supino Máquina",               s:3, reps:"3×8+12",        min:120, ideal:150},
-      {n:"Cross Over / Voador",          s:3, reps:"3×10",          min:90,  ideal:120},
+      {n:"Supino Inclinado",             s:3, reps:"3×8+12",        min:120, ideal:150, novo:true},
+      {n:"Voador + Voador Invertido",    biset:true, s:3, reps:"3×10 + 3×10", min:90, ideal:120, novo:true},
       {n:"Puxador Frente + Remada Baixa", biset:true, s:3, reps:"3×10 + 3×10", min:120, ideal:150},
       {n:"Remada Curvada Polia",         s:4, reps:"4×12/10/8/6",   min:120, ideal:180},
-      {n:"Voador Invertido",             s:3, reps:"3× a confirmar",min:90,  ideal:120},
-      {n:"Rodinha (Supra)",              s:3, reps:"3×15",          min:45,  ideal:60, pc:true},
-      {n:"Vela (Infra)",                 s:3, reps:"3×15",          min:45,  ideal:60, pc:true},
-      {n:"Heel Touch",                   s:3, reps:"3×40",          min:30,  ideal:45, pc:true}
+      {n:"Puxada Facial (Face Pull)",    s:3, reps:"3×15",          min:60,  ideal:90, novo:true},
+      {n:"Abdominal Supra (Rodinha)",    s:3, reps:"3×15",          min:45,  ideal:60, pc:true},
+      {n:"Abdominal Heel Touch",         s:3, reps:"3×40",          min:30,  ideal:45, pc:true}
     ]},
-  B:{ id:"B", nome:"Treino B", dias:"QUA", foco:"Ombro · Bíceps · Tríceps · Abdômen", cor:"#2563c7", extras:false,
+  B:{ id:"B", nome:"Treino B", dias:"QUARTA", foco:"Ombro · Tríceps · Bíceps · Abdômen", cor:"#2563c7",
     ex:[
       {n:"Desenvolvimento Halter",       s:3, reps:"3×10",          min:120, ideal:150},
       {n:"Elev. Lateral + Elev. Frontal", biset:true, s:3, reps:"3×10 + 3×10", min:90, ideal:120},
       {n:"Rosca Scott Barra W",          s:3, reps:"3×10/8/6",      min:90,  ideal:120},
-      {n:"Rosca Direta Barra W",         s:3, reps:"3×10",          min:60,  ideal:90},
-      {n:"Bíceps Polia Alta Unilateral", s:3, reps:"3×8",           min:60,  ideal:90},
+      {n:"Bíceps no Puxador (Polia)",    s:3, reps:"3×10",          min:60,  ideal:90, novo:true},
       {n:"Tríceps Puxador Reto + Testa Polia", biset:true, s:3, reps:"3×10 + 3×10", min:90, ideal:120},
       {n:"Tríceps Ext. Polia Unilateral",s:3, reps:"3×8",           min:60,  ideal:90},
-      {n:"Rodinha (Supra)",              s:3, reps:"3×15",          min:45,  ideal:60, pc:true},
-      {n:"Heel Touch",                   s:3, reps:"3×40",          min:30,  ideal:45, pc:true}
+      {n:"Abdominal Supra (Rodinha)",    s:3, reps:"3×15",          min:45,  ideal:60, pc:true},
+      {n:"Abdominal Vela (Infra)",       s:3, reps:"3×15",          min:45,  ideal:60, pc:true}
     ]},
-  C:{ id:"C", nome:"Treino C", dias:"QUI", foco:"Pernas · Abdômen", cor:"#1f9d55", extras:true,
+  C:{ id:"C", nome:"Treino C", dias:"QUINTA", foco:"Pernas (sem abdômen)", cor:"#1f9d55",
     ex:[
       {n:"Agachamento Smith",            s:3, reps:"3×8+12",        min:150, ideal:180},
       {n:"Leg Press + Panturrilha Leg Press", biset:true, s:3, reps:"3×10 + 3×10", min:120, ideal:150},
       {n:"Avanço",                       s:3, reps:"3×20",          min:90,  ideal:120},
       {n:"Extensão Unilateral + Bilateral", biset:true, s:3, reps:"3×10 + 3×10", min:90, ideal:120},
       {n:"Flexão (Mesa Flexora)",        s:4, reps:"4×12/10/8/6",   min:90,  ideal:120},
-      {n:"Adutor + Abdutor",             biset:true, s:3, reps:"3×15 + 3×15", min:60, ideal:90},
-      {n:"Rodinha (Supra)",              s:3, reps:"3×15",          min:45,  ideal:60, pc:true},
-      {n:"Vela (Infra)",                 s:3, reps:"3×15",          min:45,  ideal:60, pc:true},
-      {n:"Heel Touch",                   s:3, reps:"3×40",          min:30,  ideal:45, pc:true}
+      {n:"Adutor + Abdutor",             biset:true, s:3, reps:"3×15 + 3×15", min:60, ideal:90}
     ]},
-  D:{ id:"D", nome:"Treino D", dias:"DOM", foco:"Ombro · Tríceps · Abdômen", cor:"#7c3fd6", extras:true,
+  D:{ id:"D", nome:"Treino D", dias:"SEXTA", foco:"Bíceps Complementar · Antebraço · Abdômen", cor:"#7c3fd6",
     ex:[
-      {n:"Desenvolvimento Arnold Halter",s:3, reps:"3×10",          min:120, ideal:150},
-      {n:"Elev. Lateral + Elev. Posterior", biset:true, s:3, reps:"3×12 + 3×12", min:90, ideal:120},
-      {n:"Tríceps Corda na Polia",       s:3, reps:"3×12",          min:60,  ideal:90},
-      {n:"Tríceps Francês Halter Unilat.",s:3,reps:"3×10",          min:60,  ideal:90},
-      {n:"Rodinha (Supra)",              s:3, reps:"3×15",          min:45,  ideal:60, pc:true},
-      {n:"Prancha",                      s:3, reps:"3×40s",         min:45,  ideal:60, pc:true}
+      {n:"Barra Chin-up",                s:3, reps:"3×10",          min:90,  ideal:120, pc:true},
+      {n:"Rosca Martelo",                s:3, reps:"3×10",          min:60,  ideal:90},
+      {n:"Rosca Concentrada Unilateral", s:3, reps:"3×10",          min:60,  ideal:90, novo:true},
+      {n:"Bíceps Polia Alta Unilateral", s:3, reps:"3×8",           min:60,  ideal:90},
+      {n:"Rosca Inversa (pegada pronada)", s:3, reps:"3×12",        min:60,  ideal:90, novo:true},
+      {n:"Abdominal Heel Touch",         s:3, reps:"3×40",          min:30,  ideal:45, pc:true}
     ]},
-  GK:{ id:"GK", nome:"Bloco Goleiro", dias:"TER · ~24MIN", foco:"Potência · Agilidade · Reação", cor:"#0e9384", extras:false,
+  CARDIO:{ id:"CARDIO", nome:"Cardio", badge:"🏃", dias:"DOMINGO", foco:"30-40 min · Zona 2 · Leve-moderado", cor:"#ea8c00",
+    ex:[
+      {n:"Cardio Zona 2 (caminhada, bike ou elíptico)", s:1, reps:"30-40 min", min:0, ideal:0, pc:true}
+    ]},
+  /* O mapa v5 mantém o Bloco Goleiro na terça, mas não reimprime a tabela.
+     Os exercícios abaixo vêm do mapa anterior (v4) — confira se ainda valem. */
+  GK:{ id:"GK", nome:"Bloco Goleiro", dias:"TERÇA · ~24MIN", foco:"Potência · Agilidade · Reação", cor:"#0e9384",
     ex:[
       {n:"Mobilidade dinâmica de quadril", s:1, reps:"2 min",        min:0,  ideal:0,  pc:true},
       {n:"Skipping + mudança de direção",  s:3, reps:"3×20s",        min:30, ideal:45, pc:true},
@@ -652,17 +676,29 @@ const PLAN = {
     ]}
 };
 
-/* Extras do mapa (dias sem bíceps). O mapa não define pausa para eles:
-   adotei 1:00 → 1:30, coerente com exercícios de mesmo porte. */
-const EXTRAS = [
-  {n:"Rosca Martelo", s:3, reps:"3×10", min:60, ideal:90, extra:true},
-  {n:"Chin-up",       s:3, reps:"3×10", min:60, ideal:90, extra:true, pc:true}
-];
+/* Versão do plano. Sessão salva sob um plano antigo é descartada no boot,
+   porque os exercícios mudaram de posição e de conteúdo. */
+const PLANO_VER = 5;
 
-const SEMANA = ["D","A","GK","B","C","A","OFF"];   /* índice = Date.getDay() */
+/* Exercícios renomeados na v5 — a carga registrada migra para a chave nova. */
+const ALIAS_CARGA = {
+  "cross-over-voador"  : "voador",
+  "rodinha-supra"      : "abdominal-supra-rodinha",
+  "heel-touch"         : "abdominal-heel-touch",
+  "vela-infra"         : "abdominal-vela-infra",
+  "chin-up"            : "barra-chin-up"
+};
+
+const SEMANA = ["CARDIO","A","GK","B","C","D","OFF"];   /* índice = Date.getDay() */
 const DIAS_PT = ["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
 const DIAS_CURTO = ["dom","seg","ter","qua","qui","sex","sáb"];
-const ORDEM = ["A","B","C","D","GK"];
+const ORDEM = ["A","B","C","D","CARDIO","GK"];
+const sigla = id => (PLAN[id] && PLAN[id].badge) || id;
+
+/* Duração máxima registrada por treino. Se o treino ficar aberto (esqueci de
+   fechar), a duração gravada e somada nos relatórios trava neste teto. */
+const DUR_MAX_MS = 65*60000;
+const durEfetiva = r => Math.min(r.duracaoMs || 0, DUR_MAX_MS);
 
 /* =========================================================================
    2. PERSISTÊNCIA
@@ -670,9 +706,10 @@ const ORDEM = ["A","B","C","D","GK"];
 const KEY = "treino2026.v1";
 const DEFAULTS = {
   cargas:{}, historico:[], sessao:null, passo:2.5,
-  cfg:{ som:true, vibrar:true, wake:true, autoAvancar:true, extras:true }
+  cfg:{ som:true, vibrar:true, wake:true, autoAvancar:true }
 };
 let storageOK = true;
+let sessaoDescartada = false;
 let DB = null;
 
 function loadDB(){
@@ -692,6 +729,18 @@ function loadDB(){
     DB.sessao.prog = p;
     DB.sessao.progSerie = DB.sessao.serie || 0;
   }
+  /* sessão aberta sob o plano antigo não bate com os exercícios da v5 */
+  let mudou = false;
+  if(DB.sessao && DB.sessao.planoVer !== PLANO_VER){ DB.sessao = null; sessaoDescartada = true; mudou = true; }
+  /* cargas de exercícios renomeados na v5 seguem para a chave nova, uma vez só */
+  if(!DB.migr5){
+    Object.keys(ALIAS_CARGA).forEach(velho => {
+      const novo = ALIAS_CARGA[velho];
+      if(typeof DB.cargas[velho] === "number" && DB.cargas[novo] == null) DB.cargas[novo] = DB.cargas[velho];
+    });
+    DB.migr5 = true; mudou = true;
+  }
+  if(mudou) saveDB(true);        /* a migração precisa ficar gravada, não só em memória */
 }
 let saveTimer = null;
 function saveDB(now){
@@ -717,6 +766,12 @@ const hmm  = ms => {
   return m>=60 ? Math.floor(m/60)+"h"+String(m%60).padStart(2,"0") : m+" min";
 };
 const kg = v => (Math.round(v*10)/10).toString().replace(".",",");
+/* Volume de carga: kg até 10 t, depois toneladas — números ficam grandes rápido */
+function vol(v){
+  v = v || 0;
+  if(v >= 10000) return (v/1000).toLocaleString("pt-BR",{maximumFractionDigits:1}) + " t";
+  return Math.round(v).toLocaleString("pt-BR") + " kg";
+}
 function slug(t){ return t.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,""); }
 function esc(t){ return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("on"),1900); }
@@ -748,12 +803,9 @@ function ask(title, msg, opts){
 }
 const aviso = (t,m) => ask(t, m, [{label:"Entendi", value:true, kind:"go"}]);
 
-/* Exercícios de um treino, já com extras conforme configuração */
+/* Exercícios de um treino. Na v5 os antigos "extras" viraram o Treino D. */
 function exercicios(tid){
-  const t = PLAN[tid];
-  const base = t.ex.slice();
-  if(t.extras && DB.cfg.extras) base.push.apply(base, EXTRAS);
-  return base;
+  return PLAN[tid] ? PLAN[tid].ex.slice() : [];
 }
 function partes(ex){ return ex.biset ? ex.n.split(" + ") : [ex.n]; }
 function cargaKey(nome){ return slug(nome); }
@@ -774,6 +826,52 @@ function repsAlvo(ex){
     return Math.min.apply(null, ns);
   });
 }
+/* Repetições de CADA série, na ordem — base do volume de carga.
+   "3×10"        → [10,10,10]
+   "4×12/10/8/6" → [12,10,8,6]      (a barra separa série a série)
+   "3×8+12"      → [20,20,20]       (o + soma as reps feitas na mesma série)
+   tempo/rodadas → null             (não entra no volume)
+   Difere de repsAlvo(), que busca a série MAIS PESADA para o 1RM. */
+function repsPorSerie(bloco, nSeries){
+  if(!bloco) return null;
+  if(/min|volta|padr|confirmar|\d\s*s\b/i.test(bloco)) return null;
+  const m = bloco.match(/×\s*([\d/+]+)/);
+  if(!m) return null;
+  const txt = m[1];
+  if(txt.indexOf("/") >= 0){
+    const a = txt.split("/").map(Number).filter(x => x > 0);
+    if(!a.length) return null;
+    const out = [];
+    for(let i = 0; i < nSeries; i++) out.push(a[i] != null ? a[i] : a[a.length-1]);
+    return out;
+  }
+  const soma = txt.split("+").map(Number).filter(x => x > 0).reduce((x,y) => x+y, 0);
+  if(!soma) return null;
+  return new Array(nSeries).fill(soma);
+}
+
+/* Volume de uma série: carga × repetições, somando cada parte do bi-set.
+   Exercício sem carga registrada (peso corporal / tempo) contribui zero —
+   registre a carga no +/- se quiser que ele conte. */
+function volumeDaSerie(ex, idxSerie){
+  const blocos = ex.biset ? ex.reps.split(" + ") : [ex.reps];
+  let v = 0;
+  partes(ex).forEach((nome, k) => {
+    const carga = getCarga(nome);
+    if(carga <= 0) return;
+    const rps = repsPorSerie(blocos[k] || blocos[0], ex.s);
+    if(!rps) return;
+    v += carga * rps[Math.min(idxSerie, rps.length-1)];
+  });
+  return v;
+}
+/* Volume total previsto de um exercício (todas as séries) */
+function volumePrevisto(ex){
+  let v = 0;
+  for(let i = 0; i < ex.s; i++) v += volumeDaSerie(ex, i);
+  return v;
+}
+
 /* 1RM estimado — fórmula de Epley: 1RM = carga × (1 + reps/30).
    Só faz sentido em séries de baixa/média repetição; acima de 12 reps não exibo. */
 function epley(carga, reps){
@@ -888,7 +986,7 @@ function render(){
     b.className = "plan" + (sug ? " suggested" : "");
     b.style.setProperty("--pc", t.cor);
     b.innerHTML =
-      '<div class="badge'+(id==="GK"?" sm":"")+'">'+id+'</div>'+
+      '<div class="badge'+(sigla(id).length>1?" sm":"")+'">'+sigla(id)+'</div>'+
       '<div class="info"><h3>'+t.nome+'</h3><div class="days">'+t.dias+'</div>'+
       '<div class="focus">'+t.foco+'</div></div>'+
       '<div class="meta">'+(sug ? '<span class="pill-hoje">Hoje</span>' : '')+'<span>'+n+' ex.</span></div>';
@@ -896,8 +994,12 @@ function render(){
     list.appendChild(b);
   });
 
+  if(sessaoDescartada){
+    toast("Plano atualizado para a v5 — o treino que estava aberto foi descartado");
+    sessaoDescartada = false;
+  }
   $("#home-note").innerHTML =
-    '<b>'+DB.historico.length+'</b> treino(s) registrado(s) · versão '+APP_VER+
+    'Plano <b>v5</b> · <b>'+DB.historico.length+'</b> treino(s) registrado(s) · versão '+APP_VER+
     (storageOK ? '' : '<br><span style="color:#f6c445">⚠ Este navegador bloqueou o armazenamento local — publique o app em um endereço http(s) para salvar.</span>');
 }
 
@@ -924,7 +1026,8 @@ async function iniciar(tid){
   }
   DB.sessao = {
     treino: tid, inicio: Date.now(), exIdx: 0, prog: {},
-    fase: "pronto", faseIni: 0, seriesFeitas: 0
+    fase: "pronto", faseIni: 0, seriesFeitas: 0,
+    volume: 0, planoVer: PLANO_VER
   };
   saveDB(true); retomar();
 }
@@ -974,8 +1077,8 @@ function retomar(){
   const t = PLAN[S.treino];
   document.documentElement.style.setProperty("--accent", t.cor);
   document.documentElement.style.setProperty("--accent-dim", t.cor+"2e");
-  $("#run-letter").textContent = t.id;
-  $("#run-letter").style.fontSize = (t.id==="GK" ? "16px" : "21px");
+  $("#run-letter").textContent = sigla(t.id);
+  $("#run-letter").style.fontSize = (sigla(t.id).length>1 ? "16px" : "21px");
   $("#run-title").textContent = t.nome;
   $("#run-focus").textContent = t.foco;
   desenharExercicio();
@@ -1181,6 +1284,8 @@ function concluirSerie(){
 /* fecha a série atual; se o exercício acabou, vai para o próximo PENDENTE */
 function fecharSerie(manual){
   const ex = exAtual();
+  /* volume da série que acabou de fechar, com a carga vigente agora */
+  S.volume = (S.volume || 0) + volumeDaSerie(ex, seriesDe(S.exIdx));
   S.prog[S.exIdx] = Math.min(ex.s, seriesDe(S.exIdx) + 1);
   S.fase = "pronto"; S.faseIni = 0; jaMin = false;
   if(feito(S.exIdx)){
@@ -1202,7 +1307,11 @@ function loop(){
 }
 function tick(){
   if(!S) return;
-  $("#run-clock").textContent = mmss((Date.now()-S.inicio)/1000);
+  const decorrido = Date.now()-S.inicio;
+  const relogio = $("#run-clock");
+  relogio.textContent = mmss(decorrido/1000);
+  relogio.classList.toggle("over", decorrido > DUR_MAX_MS);
+  relogio.title = decorrido > DUR_MAX_MS ? "Acima de 1:05 — a duração será registrada como 1:05" : "";
   const ex = exAtual();
   const ring = $("#ring"), C = 540.35;
   const big = $("#tm-big"), lbl = $("#tm-lbl"), hint = $("#tm-hint"), mark = $("#ring-mark");
@@ -1253,14 +1362,18 @@ function tick(){
 
 /* --- fim do treino --- */
 function finalizar(parcial){
-  const dur = Date.now() - S.inicio;
+  const bruto = Date.now() - S.inicio;
+  const dur = Math.min(bruto, DUR_MAX_MS);      /* teto de 1:05 — ver DUR_MAX_MS */
+  const estourou = bruto > DUR_MAX_MS;
   const t = PLAN[S.treino];
   const cargas = {};
   LISTA.forEach((e,i) => { if(seriesDe(i) > 0) partes(e).forEach(n => { const v = getCarga(n); if(v>0) cargas[n] = v; }); });
   const feitos = qtdFeitos();
   const reg = {
     id: Date.now(), treino: S.treino, data: new Date().toISOString(),
-    duracaoMs: dur, series: S.seriesFeitas, exercicios: LISTA.length,
+    duracaoMs: dur, duracaoBrutaMs: bruto, limitada: estourou,
+    series: S.seriesFeitas, exercicios: LISTA.length,
+    volume: Math.round(S.volume || 0),
     feitos: feitos, pendentes: LISTA.length - feitos,
     parcial: !!parcial && feitos < LISTA.length, cargas: cargas
   };
@@ -1279,6 +1392,11 @@ function finalizar(parcial){
   $("#done-time").textContent = hmm(dur);
   $("#done-series").textContent = reg.series;
   $("#done-vol").textContent = reg.feitos + "/" + reg.exercicios;
+  $("#done-load").textContent = vol(reg.volume);
+  $("#done-note").innerHTML = estourou
+    ? '⏱ O treino ficou aberto por '+hmm(bruto)+'. A duração registrada foi limitada a 1:05 para não distorcer os totais.'
+    : (reg.volume ? 'Volume de carga = carga × repetições, somado série a série.' : '');
+  $("#done-note").style.display = $("#done-note").innerHTML ? "" : "none";
   show("scr-done");
 }
 $("#done-ok").addEventListener("click", () => { render(); show("scr-home"); });
@@ -1290,7 +1408,15 @@ $("#go-hist").addEventListener("click", () => { renderHist(); show("scr-hist"); 
 function renderHist(){
   const H = DB.historico;
   const semana = H.filter(r => new Date(r.data) >= inicioSemana()).length;
-  const totMs = H.reduce((a,r) => a + r.duracaoMs, 0);
+  const totMs = H.reduce((a,r) => a + durEfetiva(r), 0);
+  const vSem = somaVolume(H.filter(r => new Date(r.data) >= inicioSemana()));
+  const vMes = somaVolume(H.filter(r => new Date(r.data) >= inicioMes()));
+  const vTot = somaVolume(H);
+  $("#hist-vol").innerHTML =
+    '<div class="vol-title">🏋️ Peso levantado</div>'+
+    '<div class="vs"><b>'+vol(vSem)+'</b><span>Semana</span></div>'+
+    '<div class="vs"><b>'+vol(vMes)+'</b><span>Mês</span></div>'+
+    '<div class="vs"><b>'+vol(vTot)+'</b><span>Acumulado</span></div>';
   $("#hist-sub").textContent = H.length + " treino(s) registrado(s)";
   $("#hist-stats").innerHTML =
     '<div class="stat"><b>'+H.length+'</b><span>Total</span></div>'+
@@ -1303,15 +1429,18 @@ function renderHist(){
     const t = PLAN[r.treino] || {cor:"#232c3d", nome:r.treino};
     const d = new Date(r.data);
     return '<div class="h-item" style="--pc:'+t.cor+'">'+
-      '<div class="l'+(r.treino==="GK"?" sm":"")+'">'+r.treino+'</div>'+
+      '<div class="l'+(sigla(r.treino).length>1?" sm":"")+'">'+sigla(r.treino)+'</div>'+
       '<div class="d"><b>'+t.nome+(r.parcial ? ' <span class="tag extra">PARCIAL</span>' : '')+'</b><span>'+
         d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"})+
         ' · '+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})+' · '+r.series+' séries'+
         ' · '+(r.feitos!=null ? r.feitos : (r.exercicios-(r.pulados||0)))+'/'+r.exercicios+' ex.'+'</span></div>'+
-      '<div class="r">'+hmm(r.duracaoMs)+'<span>duração</span></div>'+
+      '<div class="r">'+hmm(durEfetiva(r))+(r.limitada?' *':'')+
+        '<span>'+(r.volume ? vol(r.volume) : 'duração')+'</span></div>'+
     '</div>';
   }).join("");
 }
+/* soma de volume; registros antigos (antes da v3) não têm o campo */
+function somaVolume(arr){ return arr.reduce((a,r) => a + (r.volume || 0), 0); }
 
 /* =========================================================================
    9. RELATÓRIOS
@@ -1356,21 +1485,25 @@ function relCargas(){
               (rm ? " · 1RM ~" + rm + " kg @" + r + " reps" : "") + "\n";
       });
     });
+    if(!linhas && (tid === "CARDIO" || tid === "GK")) return;   /* sem carga por natureza */
     if(!linhas){
       linhas = '<div class="rep-row"><div class="nm"><span>Nenhuma carga registrada neste treino ainda.</span></div></div>';
       tl = "(sem cargas registradas)\n";
     }
+    const vPrev = lista.reduce((a,e) => a + volumePrevisto(e), 0);
     html += '<div class="rep-block" style="--pc:'+t.cor+'">'+
-      '<h4>'+t.nome+'<small>'+t.foco+'</small></h4>'+
+      '<h4>'+t.nome+'<small>'+t.foco+(vPrev ? ' · volume previsto '+vol(vPrev) : '')+'</small></h4>'+
       '<div class="rep-head"><span class="nm">Exercício</span><span class="kg">Carga</span><span class="rm">1RM</span></div>'+
       linhas + '</div>';
-    txt += "\n" + t.nome.toUpperCase() + " — " + t.foco + "\n" + tl;
+    txt += "\n" + t.nome.toUpperCase() + " — " + t.foco +
+           (vPrev ? " (volume previsto " + vol(vPrev) + ")" : "") + "\n" + tl;
   });
 
   html += '<div class="note">1RM estimado pela fórmula de <b>Epley</b>: carga × (1 + reps/30), '+
     'usando a menor repetição da série (a mais pesada). É uma estimativa — perde precisão acima de ~10 repetições '+
     'e não substitui um teste supervisionado.</div>';
-  txt += "\n1RM estimado (fórmula de Epley: carga x (1 + reps/30)). Estimativa, não teste real.\n— Treino 2026";
+  txt += "\n1RM estimado (formula de Epley: carga x (1 + reps/30)). Estimativa, nao teste real.";
+  txt += "\nVolume previsto = carga x repeticoes x series, com as cargas de hoje.\n— Treino 2026";
   return {html: html, txt: txt, sub: "Cargas e 1RM estimado"};
 }
 
@@ -1378,7 +1511,7 @@ function relCargas(){
 function relTreinos(){
   const H = DB.historico.slice().sort((a,b) => new Date(b.data) - new Date(a.data));
   const iSem = inicioSemana(), iMes = inicioMes();
-  const somar = arr => arr.reduce((a,r) => ({n:a.n+1, ms:a.ms+r.duracaoMs, s:a.s+(r.series||0)}), {n:0, ms:0, s:0});
+  const somar = arr => arr.reduce((a,r) => ({n:a.n+1, ms:a.ms+durEfetiva(r), s:a.s+(r.series||0), v:a.v+(r.volume||0)}), {n:0, ms:0, s:0, v:0});
   const sem = somar(H.filter(r => new Date(r.data) >= iSem));
   const mes = somar(H.filter(r => new Date(r.data) >= iMes));
   const tot = somar(H);
@@ -1392,15 +1525,21 @@ function relTreinos(){
       '<div class="tot"><div class="k">Mês atual</div><b>'+pl(mes.n,"treino")+'</b>'+
         '<span>'+hmm(mes.ms)+' · '+pl(mes.s,"série","séries")+'<br>'+mesNome+'</span></div>'+
     '</div>'+
+    '<div class="vol-strip">'+
+      '<div class="vol-title">🏋️ Peso levantado (carga × repetições)</div>'+
+      '<div class="vs"><b>'+vol(sem.v)+'</b><span>Semana</span></div>'+
+      '<div class="vs"><b>'+vol(mes.v)+'</b><span>Mês</span></div>'+
+      '<div class="vs"><b>'+vol(tot.v)+'</b><span>Acumulado</span></div>'+
+    '</div>'+
     '<div class="totais" style="grid-template-columns:1fr">'+
       '<div class="tot"><div class="k">Acumulado geral</div><b>'+pl(tot.n,"treino")+' · '+hmm(tot.ms)+'</b>'+
-        '<span>'+pl(tot.s,"série","séries")+' registradas'+(H.length ? ' · desde '+new Date(H[H.length-1].data).toLocaleDateString("pt-BR") : '')+'</span></div>'+
+        '<span>'+pl(tot.s,"série","séries")+' · '+vol(tot.v)+' levantados'+(H.length ? ' · desde '+new Date(H[H.length-1].data).toLocaleDateString("pt-BR") : '')+'</span></div>'+
     '</div>';
 
   let txt = "TREINO 2026 — TREINOS REALIZADOS\n" + new Date().toLocaleDateString("pt-BR") + "\n\n" +
-    "SEMANA ("+dtBR(iSem)+" a "+dtBR(fimSem)+"): "+pl(sem.n,"treino")+" · "+hmm(sem.ms)+" · "+pl(sem.s,"série","séries")+"\n" +
-    "MÊS ("+mesNome+"): "+pl(mes.n,"treino")+" · "+hmm(mes.ms)+" · "+pl(mes.s,"série","séries")+"\n" +
-    "ACUMULADO: "+pl(tot.n,"treino")+" · "+hmm(tot.ms)+" · "+pl(tot.s,"série","séries")+"\n";
+    "SEMANA ("+dtBR(iSem)+" a "+dtBR(fimSem)+"): "+pl(sem.n,"treino")+" · "+hmm(sem.ms)+" · "+pl(sem.s,"série","séries")+" · "+vol(sem.v)+"\n" +
+    "MÊS ("+mesNome+"): "+pl(mes.n,"treino")+" · "+hmm(mes.ms)+" · "+pl(mes.s,"série","séries")+" · "+vol(mes.v)+"\n" +
+    "ACUMULADO: "+pl(tot.n,"treino")+" · "+hmm(tot.ms)+" · "+pl(tot.s,"série","séries")+" · "+vol(tot.v)+"\n";
 
   /* frequência por tipo de treino, na semana */
   const porTipo = {};
@@ -1420,16 +1559,18 @@ function relTreinos(){
           '<div class="nm"><b>'+t.nome+(r.parcial?' <span class="tag extra">PARCIAL</span>':'')+'</b>'+
           '<span>'+DIAS_CURTO[d.getDay()]+' '+d.toLocaleDateString("pt-BR")+' · '+
           d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})+' · '+r.series+' séries</span></div>'+
-          '<div class="kg">'+hmm(r.duracaoMs)+'<small>duração</small></div></div>';
+          '<div class="kg">'+hmm(durEfetiva(r))+'<small>'+(r.volume ? vol(r.volume) : 'duração')+'</small></div></div>';
       }).join("") + '</div>';
     txt += "\nÚLTIMOS TREINOS\n" + H.slice(0,40).map(r => {
       const d = new Date(r.data);
       return d.toLocaleDateString("pt-BR")+" "+DIAS_CURTO[d.getDay()]+" · "+(PLAN[r.treino]||{nome:r.treino}).nome+
-             " · "+hmm(r.duracaoMs)+" · "+r.series+" séries"+(r.parcial?" (parcial)":"");
+             " · "+hmm(durEfetiva(r))+" · "+r.series+" séries"+(r.volume?" · "+vol(r.volume):"")+(r.parcial?" (parcial)":"");
     }).join("\n") + "\n";
   }
+  txt += "\nPeso levantado = carga x repeticoes, somado serie a serie.";
+  txt += "\nDuracao de treino nao encerrado e limitada a 1:05.";
   txt += "\n— Treino 2026";
-  return {html: html, txt: txt, sub: "Treinos realizados e acumulados"};
+  return {html: html, txt: txt, sub: "Treinos, tempo e peso levantado"};
 }
 
 function renderRel(qual){
@@ -1494,7 +1635,10 @@ function renderCfg(){
   $("#cfg-note").innerHTML =
     'Os dados ficam no <b>localStorage</b> deste navegador, atrelados à origem em que o app é aberto. '+
     'Limpar dados de navegação apaga tudo — exporte o backup de tempos em tempos.<br><br>'+
-    'Pausas dos extras (Rosca Martelo e Chin-up): <b>1:00 → 1:30</b>, definidas por mim porque o mapa original não as especifica.';
+    '<b>Peso levantado</b> = carga × repetições, somado série a série, com a carga vigente no momento de cada série. '+
+    'Exercício sem carga registrada (peso corporal ou por tempo) conta zero — registre a carga no +/− para ele entrar na conta.<br><br>'+
+    '<b>Duração</b> de um treino esquecido aberto é registrada no teto de <b>1:05</b>, para não distorcer os totais.<br><br>'+
+    'Bloco Goleiro: o mapa v5 o mantém na terça mas não reimprime a tabela — os exercícios vêm do mapa anterior (v4).';
 }
 $$("[data-cfg]").forEach(b => b.addEventListener("click", () => {
   const k = b.dataset.cfg;

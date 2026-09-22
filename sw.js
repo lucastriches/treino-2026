@@ -1,7 +1,7 @@
 /* Treino 2026 — service worker
    Estratégia: cache-first para o app shell (funciona offline na academia),
    com atualização em segundo plano. Suba CACHE a cada publicação. */
-const CACHE = "treino2026-v2.0";
+const CACHE = "treino2026-v3.0";
 const SHELL = [
   "./",
   "./index.html",
